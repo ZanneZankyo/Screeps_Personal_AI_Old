@@ -1,0 +1,40 @@
+算是游戏的全局变量。可以从此变量访问到绝大部分物体。
+
+[h1]属性[/h1]
+
+[code][h1]Game.constructionSites[/h1][/code]
+类型：object<string, ConstructionSite>
+包含了玩家所有 ConstructionSite 的哈希表，键值为 ConstructionSite 的 id。
+
+[code][h1]Game.creeps[/h1][/code]
+类型：object<string, Creep>
+包含了玩家所有 Creep 的哈希表，键值为 Creep 的 name。
+
+[code][h1]Game.flags[/h1][/code]
+类型：object<string, Flag> 
+包含了玩家所有 Flag 的哈希表，键值为 Flag 的 name。
+
+[code][h1]Game.rooms[/h1][/code]
+类型：object<string, Room>
+包含了玩家所有可见 Room 的哈希表，键值为 Room 的 name。
+Room 的 name 显示在 UI 面板的右上角(ROOM XXXXX)的 XXXXX 即为 Room 的 name。
+Room 对玩家可见需要满足以下条件之一：
+[list]
+[*] 在此房间中存在玩家的 Creep;
+[*] 在此房间中存在玩家的 Construction（注意：Road 和 Wall 等没有 Owner 属性的结构不能满足此条件，因为这类结构不属于任何玩家，包括建造该结构的玩家）
+[/list]
+
+[code][h1]Game.spawns[/h1][/code]
+类型：object<string, StructureSpawn>
+包含了玩家所有 Spawn 的哈希表，键值为 Spawn 的 name。
+
+
+[code][h1]Game.structures[/h1][/code]
+类型：object<string, Structure>
+包含了玩家所有 Structure 的哈希表，键值为 Structure 的 id。
+
+[h1]方法[/h1]
+
+[code][h1]Game.getObjectById(id)[/h1][/code]
+根据参数 id 获取物体。
+返回值：存在拥有该 id 的物体时返回该物体，否则返回 null。

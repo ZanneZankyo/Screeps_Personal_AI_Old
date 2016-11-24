@@ -1,0 +1,6 @@
+Creep 是游戏中的苦力[spoiler]怕[/spoiler]，相当于 Screeps 世界中的人。所有的扩张、发展和防守任务都由该类完成。
+
+
+
+creep.moveTo
+最重要的API之一。
