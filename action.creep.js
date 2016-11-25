@@ -137,7 +137,7 @@ var actionCreep = {
 
         var site = targets[targetKeys[creep.memory.moveBuildingIndex]];
         
-        if(targetKeys) {
+        if(targetKeys.length) {
             creep.memory.action = 'building: '+site;
             if(creep.build(site) == ERR_NOT_IN_RANGE) {
                 if(creep.moveTo(site) == ERR_NO_PATH){

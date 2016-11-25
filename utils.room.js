@@ -97,7 +97,10 @@ var utilsRoom = {
 
         var allRoles = {};
         
-
+        var globalRepairTargets = {};
+        globalRepairTargets.mostUrgentRepair = undefined;
+        globalRepairTargets.damagedStructures = [];
+        globalRepairTargets.isRepairUrgent = false;
         //targets at each room
         for(var roomName in rooms)
         {
@@ -115,30 +118,26 @@ var utilsRoom = {
             var room = rooms[roomName];
             var targets = {};
 
-            var energyDrops = room.find(FIND_DROPPED_ENERGY);
+            var energyDrops = utilsRoom.findEnergyDropsInRoom(room);// room.find(FIND_DROPPED_ENERGY);
             targets.energyDrops = energyDrops;
             if(!energyDrops.length){
-                var sources = room.find(FIND_SOURCES);
+                targets = utilsRoom.findSourcesInRoom(room,targets);
+            }
 
-                var sourcesHaveEnergy = false;
-                for(var i in sources){
-                    if(sources[i].energy > 0){
-                        sourcesHaveEnergy = true;
-                        break;
-                    }
+            var repairTargets = utilsRoom.findRepairInRoom(room);
+            if(repairTargets.mostUrgentRepair){
+                if(globalRepairTargets.mostUrgentRepair){
+                    if(repairTargets.mostUrgentRepair.hits < globalRepairTargets.mostUrgentRepair.hits)
+                        globalRepairTargets.mostUrgentRepair = repairTargets.mostUrgentRepair;
                 }
-                targets.sourcesHaveEnergy = sourcesHaveEnergy;
-                targets.sources = sources;
-                if(!sourcesHaveEnergy || !sources.length){
-                    var storages = utilsRoom.getMotherRoom().find(FIND_MY_STRUCTURES, {
-                        filter: (structure) => {
-                            return  (structure.structureType == STRUCTURE_CONTAINER || structure.structureType == STRUCTURE_STORAGE) 
-                                        && structure.store[RESOURCE_ENERGY] > 0;
-                        }
-                    });
-                    targets.storages = storages;
+                else{
+                    globalRepairTargets.mostUrgentRepair = repairTargets.mostUrgentRepair;
                 }
             }
+            if(!globalRepairTargets.isRepairUrgent)
+                globalRepairTargets.isRepairUrgent = repairTargets.isRepairUrgent;
+            globalRepairTargets.damagedStructures = globalRepairTargets.damagedStructures.concat(repairTargets.damagedStructures);
+
             saves[roomName].targets = targets;
         }
         //console.log('allRoles:'+Object.keys(allRoles));
@@ -148,7 +147,7 @@ var utilsRoom = {
 
         var transfers = [];
         var tower = Game.getObjectById('583475f06925cd5373e8c228');
-        if(tower && tower.energy < 1000 && utilsCreep.getCreepsLength()>20){
+        if(tower && tower.energy < 1000 && utilsCreep.getCreepsLength()>10){
             transfers = [tower];
         }
         else if(!utilsRoom.isMotherRoomEnergyFull()){
@@ -190,40 +189,124 @@ var utilsRoom = {
         /*if(allRoles['upgrader']){
             globalTargets.controller = utilsRoom.getMotherRoom().controller;
         }*/
-        if(allRoles['repairer']){
+
+        
+        globalTargets.damagedStructures = globalRepairTargets.damagedStructures;
+        globalTargets.isRepairUrgent = globalRepairTargets.isRepairUrgent;
+        globalTargets.mostUrgentRepair = globalRepairTargets.mostUrgentRepair;
+        //console.log('mostUrgentRepair:'+globalTargets.mostUrgentRepair);
+        //console.log(globalTargets.damagedStructures);
+        //console.log('isRepairUrgent:'+globalTargets.isRepairUrgent);
+        /*if(allRoles['repairer']){
             var damagedStructures;
             var isRepairUrgent = true;
             damagedStructures = _.filter(Game.structures, 
                 (structure) => (structure.structureType == STRUCTURE_RAMPART && structure.hits < 100000)
-                            || (structure.structureType == STRUCTURE_WALL && structure.hits < 100000));
-            /*utilsRoom.getMotherRoom().find(FIND_STRUCTURES, {
+                            || (structure.structureType == STRUCTURE_WALL && structure.hits < 100000) 
+                            || structure.hits <= structure.hitsMax - 100 && structure.hits < 10000);
+            utilsRoom.getMotherRoom().find(FIND_STRUCTURES, {
                 filter: (structure) => (structure.structureType == STRUCTURE_RAMPART && structure.hits < 100000)
-                                    || (structure.structureType == STRUCTURE_WALL && structure.hits < 100000)
-            });*/
+                                    || (structure.structureType == STRUCTURE_WALL && structure.hits < 100000) 
+                                    || (structure.hits <= structure.hitsMax - 100 && structure.hits < 10000)
+            });
             if(!damagedStructures.length){
                 isRepairUrgent = false;
                 damagedStructures = _.filter(Game.structures, 
                 (structure) => structure.hits <= structure.hitsMax - 100);
-
-                var index = undefined;
-                var min = 90000000;
-
-                for(var i in damagedStructures){
-                    var hits = damagedStructures[i].hits;
-                    if(hits < min){
-                        index = i;
-                        min = damagedStructures[i].hits;
-                    }
-                }
-                globalTargets.mostUrgentRepair = damagedStructures[index];
-                /*utilsRoom.getMotherRoom().find(FIND_STRUCTURES, {
+                utilsRoom.getMotherRoom().find(FIND_STRUCTURES, {
                     filter: (structure) => structure.hits <= structure.hitsMax - 100 && structure.hits < 100000
-                });*/
+                });
             }
+
+            var index = undefined;
+            var min = 90000000;
+
+            for(var i in damagedStructures){
+                var hits = damagedStructures[i].hits;
+                if(hits < min){
+                    index = i;
+                    min = damagedStructures[i].hits;
+                }
+            }
+
+            globalTargets.mostUrgentRepair = damagedStructures[index];
+            //console.log('mostUrgentRepair:'+globalTargets.mostUrgentRepair);
+            //console.log(damagedStructures);
+            //console.log('isRepairUrgent:'+isRepairUrgent);
             globalTargets.damagedStructures = damagedStructures;
             globalTargets.isRepairUrgent = isRepairUrgent;
-        }
+        }*/
         saves.globalTargets = globalTargets;
+    },
+    findEnergyDropsInRoom : function(room){
+        var energyDrops = room.find(FIND_DROPPED_ENERGY);
+        return energyDrops;
+    },
+    findSourcesInRoom : function(room,targets){
+        var sources = room.find(FIND_SOURCES);
+
+        var sourcesHaveEnergy = false;
+        for(var i in sources){
+            if(sources[i].energy > 0){
+                sourcesHaveEnergy = true;
+                break;
+            }
+        }
+        targets.sourcesHaveEnergy = sourcesHaveEnergy;
+        targets.sources = sources;
+        if(!sourcesHaveEnergy || !sources.length){
+            var storages = utilsRoom.getMotherRoom().find(FIND_MY_STRUCTURES, {
+                filter: (structure) => {
+                    return  (structure.structureType == STRUCTURE_CONTAINER || structure.structureType == STRUCTURE_STORAGE) 
+                                && structure.store[RESOURCE_ENERGY] > 0;
+                }
+            });
+            targets.storages = storages;
+        }
+        return targets;
+    },
+    findRepairInRoom : function(room){
+        var repairTargets = {};
+
+        var damagedStructures;
+        var isRepairUrgent = true;
+        damagedStructures = /*_.filter(Game.structures, 
+            (structure) => (structure.structureType == STRUCTURE_RAMPART && structure.hits < 100000)
+                        || (structure.structureType == STRUCTURE_WALL && structure.hits < 100000) 
+                        || structure.hits <= structure.hitsMax - 100 && structure.hits < 10000);*/
+        room.find(FIND_STRUCTURES, {
+            filter: (structure) => (structure.structureType == STRUCTURE_RAMPART && structure.hits < 100000)
+                                || (structure.structureType == STRUCTURE_WALL && structure.hits < 100000) 
+                                || (structure.hits <= structure.hitsMax - 100 && structure.hits < 10000)
+        });
+        if(!damagedStructures.length){
+            isRepairUrgent = false;
+            damagedStructures = /*_.filter(Game.structures, 
+            (structure) => structure.hits <= structure.hitsMax - 100);*/
+            room.find(FIND_STRUCTURES, {
+                filter: (structure) => structure.hits <= structure.hitsMax - 100 && structure.hits < 100000
+            });
+        }
+
+        var index = undefined;
+        var min = 90000000;
+
+        for(var i in damagedStructures){
+            var hits = damagedStructures[i].hits;
+            if(hits < min){
+                index = i;
+                min = damagedStructures[i].hits;
+            }
+        }
+
+        repairTargets.mostUrgentRepair = damagedStructures[index];
+        //console.log('mostUrgentRepair:'+repairTargets.mostUrgentRepair);
+        //console.log(damagedStructures);
+        //console.log('isRepairUrgent:'+isRepairUrgent);
+        repairTargets.damagedStructures = damagedStructures;
+        repairTargets.isRepairUrgent = isRepairUrgent;
+
+        return repairTargets;
     }
 }
 
