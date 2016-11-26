@@ -34,65 +34,41 @@ var actionCreep = {
 
         if(sourcesHaveEnergy && sources.length){ // source in this room have energy
             
-            if(creep.memory.moveSourcesIndex == undefined)
-                creep.memory.moveSourcesIndex = 0;
+            if(creep.memory.targetIndex == undefined)
+                creep.memory.targetIndex = 0;
     
-            if(creep.memory.moveSourcesIndex >= sources.length){
-                creep.memory.moveSourcesIndex = 0;
+            if(creep.memory.targetIndex >= sources.length){
+                creep.memory.targetIndex = 0;
             }
     
-            creep.memory.action = 'harvesting source: '+sources[creep.memory.moveSourcesIndex];
-            if(sources[creep.memory.moveSourcesIndex].energy <= 0)
-                creep.memory.moveSourcesIndex++;
-            else if(creep.harvest(sources[creep.memory.moveSourcesIndex]) == ERR_NOT_IN_RANGE) {
-                if(creep.moveTo(sources[creep.memory.moveSourcesIndex]) == ERR_NO_PATH){
-                    creep.memory.moveSourcesIndex++;
+            creep.memory.action = 'harvesting source: '+sources[creep.memory.targetIndex];
+            if(sources[creep.memory.targetIndex].energy <= 0)
+                creep.memory.targetIndex++;
+            else if(creep.harvest(sources[creep.memory.targetIndex]) == ERR_NOT_IN_RANGE) {
+                if(creep.moveTo(sources[creep.memory.targetIndex]) == ERR_NO_PATH){
+                    creep.memory.targetIndex++;
                 }
             }
         }
         else{
-            /*var storages = utilsRoom.getMotherRoom().find(FIND_STRUCTURES, {
-                filter: (structure) => {
-                    return  (structure.structureType == STRUCTURE_CONTAINER || structure.structureType == STRUCTURE_STORAGE) 
-                                && structure.store[RESOURCE_ENERGY] > 0;
-                }
-            });
+
+            var sourceFlags = saves.globalTargets.sourceFlags;
             
-            if(storages.length > 0){ // storages in this room have energy
-                var keys = Object.keys(storages);
-                
-                if(creep.memory.moveSourcesIndex == undefined)
-                    creep.memory.moveSourcesIndex = 0;
-        
-                if(creep.memory.moveSourcesIndex >= keys.length){
-                    creep.memory.moveSourcesIndex = 0;
+            if(sourceFlags.length){
+                var index = 0;
+                try{
+                    index = parseInt(Math.random()*sourceFlags.length);
+                    //console.log('index is randomized');
+                }catch(e){
+                    var lastChar = creep.name[creep.name.length-1];
+                    index = lastChar.charCodeAt(0) % sourceFlags.length;
                 }
-                if(storages[keys[creep.memory.moveSourcesIndex]].store[RESOURCE_ENERGY] <= 0)
-                    creep.memory.moveSourcesIndex++;
-                else if(creep.withdraw(storages[keys[creep.memory.moveSourcesIndex]],RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                    if(creep.moveTo(storages[keys[creep.memory.moveSourcesIndex]]) == ERR_NO_PATH){
-                        creep.memory.moveSourcesIndex++;
-                    }
-                }
+                console.log('['+creep.name+'] move to '+ sourceFlags[index]+' for harvesting, flag index:'+index);
+                creep.memory.destinationFlagName = sourceFlags[index].name;
+                creep.moveTo(sourceFlags[index]);
+                creep.memory.action = 'moving to flag: '+Game.flags[creep.memory.destinationFlagName];
             }
-            else{*/
-                var sourceFlags = saves.globalTargets.sourceFlags;
-                
-                if(sourceFlags.length){
-                    var index = 0;
-                    try{
-                        index = parseInt(Math.random()*sourceFlags.length);
-                        //console.log('index is randomized');
-                    }catch(e){
-                        var lastChar = creep.name[creep.name.length-1];
-                        index = lastChar.charCodeAt(0) % sourceFlags.length;
-                    }
-                    console.log('['+creep.name+'] move to '+ sourceFlags[index]+' for harvesting, flag index:'+index);
-                    creep.memory.destinationFlagName = sourceFlags[index].name;
-                    creep.moveTo(sourceFlags[index]);
-                    creep.memory.action = 'moving to flag: '+Game.flags[creep.memory.destinationFlagName];
-                }
-            //}
+
         }
     },
     doUpgrade : function(creep){
@@ -113,17 +89,17 @@ var actionCreep = {
             return;
         }
         
-        if(creep.memory.moveTargetIndex == undefined)
-            creep.memory.moveTargetIndex = 0;
+        if(creep.memory.targetIndex == undefined)
+            creep.memory.targetIndex = 0;
         
-        creep.memory.action = 'transfering energy to: '+targets[creep.memory.moveTargetIndex];
-        if(creep.transfer(targets[creep.memory.moveTargetIndex], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-            if(creep.moveTo(targets[creep.memory.moveTargetIndex]) == ERR_NO_PATH){
+        creep.memory.action = 'transfering energy to: '+targets[creep.memory.targetIndex];
+        if(creep.transfer(targets[creep.memory.targetIndex], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+            if(creep.moveTo(targets[creep.memory.targetIndex]) == ERR_NO_PATH){
                 creep.memory.moveSourcesIndex++;
             }
         }
-        if(creep.memory.moveTargetIndex >= targets.length)
-            creep.memory.moveTargetIndex = 0;
+        if(creep.memory.targetIndex >= targets.length)
+            creep.memory.targetIndex = 0;
     },
     doBuild : function(creep){
 
@@ -132,19 +108,19 @@ var actionCreep = {
         var targets = saves.globalTargets.constructionSites;
         var targetKeys = Object.keys(targets);
 
-        if(creep.memory.moveBuildingIndex == undefined)
-            creep.memory.moveBuildingIndex = 0;
+        if(creep.memory.targetIndex == undefined)
+            creep.memory.targetIndex = 0;
 
-        if(creep.memory.moveBuildingIndex >= targetKeys.length)
-                creep.memory.moveBuildingIndex = 0;
+        if(creep.memory.targetIndex >= targetKeys.length)
+                creep.memory.targetIndex = 0;
 
-        var site = targets[targetKeys[creep.memory.moveBuildingIndex]];
+        var site = targets[targetKeys[creep.memory.targetIndex]];
         
         if(site) {
             creep.memory.action = 'building: '+site;
             if(creep.build(site) == ERR_NOT_IN_RANGE) {
                 if(creep.moveTo(site) == ERR_NO_PATH){
-                creep.memory.moveBuildingIndex++;
+                creep.memory.targetIndex++;
                 }
             }
         }
@@ -236,15 +212,18 @@ var actionCreep = {
     },
     isDanger : function(creep){
         if(creep.room.find(FIND_HOSTILE_CREEPS).length > 0){
-            console.log('['+creep.name+'] found hostiles!');
+            console.log('['+creep.name+'] found hostiles! at room: ['+creep.room.name+']');
             return true;
         }
         return false;
     },
     doAvoid : function(creep){
         console.log('['+creep.name+'] retreats to savezone');
-        creep.memory.action = 'avoiding enemy';
         creep.moveTo(Game.flags['SaveZone']);
+        creep.memory.action = 'avoiding enemy';
+        creep.memory.destinationFlagName = undefined;
+        creep.memory.targetIndex = undefined;
+        creep.memory.currentRepairTarget = undefined;
     },
     doAttack : function(creep){
         var closestHostile = tower.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
