@@ -135,17 +135,18 @@ var actionCreep = {
         if(creep.memory.moveBuildingIndex == undefined)
             creep.memory.moveBuildingIndex = 0;
 
+        if(creep.memory.moveBuildingIndex >= targetKeys.length)
+                creep.memory.moveBuildingIndex = 0;
+
         var site = targets[targetKeys[creep.memory.moveBuildingIndex]];
         
-        if(targetKeys.length) {
+        if(site) {
             creep.memory.action = 'building: '+site;
             if(creep.build(site) == ERR_NOT_IN_RANGE) {
                 if(creep.moveTo(site) == ERR_NO_PATH){
                 creep.memory.moveBuildingIndex++;
                 }
             }
-            if(creep.memory.moveBuildingIndex >= targets.length)
-                creep.memory.moveBuildingIndex = 0;
         }
         else{
             if(utilsRoom.isMotherRoomEnergyFull())
@@ -188,29 +189,6 @@ var actionCreep = {
                 return;
             }
 
-            /*var damagedStructures = saves.globalTargets.damagedStructures;
-            var index = undefined;
-            var min = 90000000;
-
-            for(var i in damagedStructures){
-                var hits = damagedStructures[i].hits;
-                if(hits < min){
-                    index = i;
-                    min = damagedStructures[i].hits;
-                }
-            }
-            
-            if(damagedStructures[index]) {
-                
-                creep.memory.currentRepairTargetId = damagedStructures[index].id;
-                creep.memory.originalTargetHits = damagedStructures[index].hits;
-                creep.memory.maxRepairPoint = creep.carry.energy * 100;
-                console.log('['+creep.name+'] has new repair target: ' + damagedStructures[index] + ', energy:'+creep.carry.energy+', maxRepair:'+creep.memory.maxRepairPoint);
-                creep.memory.action = 'repairing: '+damagedStructures[index];
-                if(creep.repair(damagedStructures[index]) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(damagedStructures[index]);
-                }
-            }*/
             var mostUrgentRepair = saves.globalTargets.mostUrgentRepair;
 
             if(mostUrgentRepair){
