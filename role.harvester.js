@@ -1,4 +1,5 @@
 var action = require('action.creep');
+var utilsRoom = require('utils.room');
 var roleHarvester = {
 
     /** @param {Creep} creep **/
@@ -6,9 +7,10 @@ var roleHarvester = {
         
         if(!creep.memory.harvesting && creep.carry.energy <= 0)
             creep.memory.harvesting = true;
-        if(creep.memory.harvesting && creep.carry.energy >= creep.carryCapacity)
+        if(creep.memory.harvesting && action.isCarryFull(creep))
             creep.memory.harvesting = false;
-        action.doNeedRenew(creep);
+        if(!creep.memory.renewing)
+            action.doNeedRenew(creep);
 
         if (creep.memory.renewing){
             action.doRenew(creep);
@@ -17,10 +19,11 @@ var roleHarvester = {
             action.doAvoid(creep);
         }
 	    else if(creep.memory.harvesting) {
-            action.doHarvest(creep);
+            //action.doHarvest(creep);
+            action.doHarvestInRoom(creep,utilsRoom.getMotherRoom().name);
         }
         else {
-            action.doTransferEnergy(creep);
+            action.doTransferToStorage(creep);
         }
 	}
 };

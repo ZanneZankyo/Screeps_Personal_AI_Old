@@ -1,5 +1,6 @@
 var saves = require('saves');
 var utilsCreep = require('utils.creep');
+
 var utilsRoom = {
     getMotherRoom : function (){
         return Game.spawns['Talkroom'].room;
@@ -15,22 +16,58 @@ var utilsRoom = {
             var body = utilsRoom.getBodyPart(currentEnergy,roleName);
             console.log('Spawn ['+roleName+'] with body: ['+ body + ']');
             var roomName = Game.spawns['Talkroom'].room.name;
-            Game.spawns['Talkroom'].createCreep(body,undefined,{role:roleName,roomName:roomName,spawnName:'Talkroom'});
+            var creepName = Game.spawns['Talkroom'].createCreep(body,undefined,{role:roleName,roomName:roomName,spawnName:'Talkroom'});
+            var newCreep = Game.creeps[creepName];
+            if(roleName == 'outsideHarvester'){
+                utilsCreep.assignHarvestRoom(newCreep);
+            }
         }
     },
     getNextSpawnCreepRole : function (){
-        
-        var builders = _.filter(Game.creeps, (creep) => creep.memory.role == 'builder');
-        var upgraders = _.filter(Game.creeps, (creep) => creep.memory.role == 'upgrader');
+
         var harvesters = _.filter(Game.creeps, (creep) => creep.memory.role == 'harvester');
-        var claimers = _.filter(Game.creeps, (creep) => creep.memory.role == 'claimer');
+        var harvesterWeight = 10;
+        var upgraders = _.filter(Game.creeps, (creep) => creep.memory.role == 'upgrader');
+        var upgraderWeight = 9;
         var repairers = _.filter(Game.creeps, (creep) => creep.memory.role == 'repairer');
+        var repairerWeight = 7;
+        var builders = _.filter(Game.creeps, (creep) => creep.memory.role == 'builder');
+        var builderWeight = 5;
+        var carriers = _.filter(Game.creeps, (creep) => creep.memory.role == 'carrier');
+        var carrierWeight = 6;
+        var outsideHarvesters = _.filter(Game.creeps, (creep) => creep.memory.role == 'outsideHarvester');
+
+        var totalWeight = harvesterWeight + upgraderWeight + repairerWeight + builderWeight + carrierWeight;
+
+        var numOfCreeps = utilsCreep.getCreepsLength();
+
+        if(harvesters.length >= 2 && outsideHarvesters.length < Object.keys(saves.globalTargets.sourceFlags).length){
+            return 'outsideHarvester';
+        }
+
+        if(harvesters.length < parseInt(numOfCreeps * harvesterWeight / totalWeight))
+            return 'harvester';
+        else if(upgraders.length < parseInt(numOfCreeps * upgraderWeight / totalWeight))
+            return 'upgrader';
+        else if(repairers.length < parseInt(numOfCreeps * repairerWeight / totalWeight))
+            return 'repairer';
+        else if(builders.length < parseInt(numOfCreeps * builderWeight / totalWeight))
+            return 'builder';
+        else if(carriers.length < parseInt(numOfCreeps * carrierWeight / totalWeight))
+            return 'carrier';
+        else if(numOfCreeps < 20)
+            return 'harvester';
         
-        if(harvesters.length < 2)
+        //var claimers = _.filter(Game.creeps, (creep) => creep.memory.role == 'claimer');
+
+        
+        /*if(harvesters.length < 2)
             return 'harvester';
         if(upgraders.length < 1)
             return 'upgrader';
         if(repairers.length < 2)
+            return 'repairer';
+        if(repairers.length < 1)
             return 'repairer';
         //if(claimers.length < 1 && utilsRoom.getMotherRoom().energyAvailable > 650)
         //    return 'claimer';
@@ -53,11 +90,17 @@ var utilsRoom = {
                 minIndex = index;
             }
         }
-        return creepsOfRoles[minIndex].name;
+        return creepsOfRoles[minIndex].name;*/
     },
     getBodyPart : function(currentEnergy,roleName){
         if(roleName == 'claimer')
             return utilsRoom.getClaimerBodyPart();
+        if(roleName == 'carrier')
+            return utilsRoom.getCarrierBodyPart(currentEnergy);
+        if(roleName == 'upgrader')
+            return utilsRoom.getUpgraderBodyPart(currentEnergy);
+        if(roleName == 'harvester')
+            return utilsRoom.getHarvesterBodyPart(currentEnergy);
         return utilsRoom.getWorkerBodyPart(currentEnergy);
     },
     getWorkerBodyPart : function(totalEnergy){
@@ -73,7 +116,7 @@ var utilsRoom = {
         while(isPartsAddable[0]||isPartsAddable[1]||isPartsAddable[2]){
             if(index >= parts.length)
                 index = 0;
-            if(parts[index].energy <= totalEnergy - currentEnergy){
+            if(isPartsAddable[index] && parts[index].energy <= totalEnergy - currentEnergy){
                 body.push(parts[index].type);
                 currentEnergy += parts[index].energy;
             }
@@ -83,13 +126,109 @@ var utilsRoom = {
         }
         return body;
     },
+    getUpgraderBodyPart : function(totalEnergy){
+        var parts = {energy:100,type:WORK};
+        var isPartsAddable = true;
+        var currentEnergy = 200;
+        var body = [CARRY,MOVE,MOVE,MOVE];
+        while(isPartsAddable){
+            if(parts.energy <= totalEnergy - currentEnergy){
+                body.push(parts.type);
+                currentEnergy += parts.energy;
+            }
+            else
+                isPartsAddable = false;
+        }
+
+        return body;
+    },
+    getHarvesterBodyPart : function(totalEnergy){
+        var parts = {energy:100,type:WORK};
+        var isPartsAddable = true;
+        var currentEnergy = 200;
+        var body = [CARRY,MOVE,MOVE,MOVE];
+        while(isPartsAddable){
+            if(parts.energy <= totalEnergy - currentEnergy){
+                body.push(parts.type);
+                currentEnergy += parts.energy;
+            }
+            else
+                isPartsAddable = false;
+        }
+
+        return body;
+    },
     getClaimerBodyPart : function(){
         return [CLAIM,MOVE];
+    },
+    getOutsideHarvesterBodyPart : function(totalEnergy){
+        var parts = {energy:100,type:WORK};
+        var isPartsAddable = true;
+        var currentEnergy = 200;
+        var body = [CARRY,MOVE,MOVE,MOVE];
+        while(isPartsAddable){
+            if(parts.energy <= totalEnergy - currentEnergy){
+                body.push(parts.type);
+                currentEnergy += parts.energy;
+            }
+            else
+                isPartsAddable = false;
+        }
+
+        return body;
+    },
+    getCarrierBodyPart : function(totalEnergy){
+        var parts = [
+            {energy:50,type:MOVE},
+            {energy:50,type:CARRY},
+            {energy:50,type:CARRY}
+        ];
+        var isPartsAddable = [true,true,true];
+        var index = 0;
+        var currentEnergy = 0;
+        var body = [];
+        while(isPartsAddable[0]||isPartsAddable[1]||isPartsAddable[2]){
+            if(index >= parts.length)
+                index = 0;
+            if(isPartsAddable[index] && parts[index].energy <= totalEnergy - currentEnergy){
+                body.push(parts[index].type);
+                currentEnergy += parts[index].energy;
+            }
+            else
+                isPartsAddable[index] = false;
+            index++;
+        }
+        return body;
+    },
+    getLinkCarrierBodyPart : function(totalEnergy){
+        var part = {energy:50,type:CARRY};
+        var isPartsAddable = true;
+        var carryCount = 0;
+        var index = 0;
+        var currentEnergy = 200;
+        var body = [MOVE,MOVE,MOVE,MOVE];
+        while(isPartsAddable){
+            if(part.energy <= totalEnergy - currentEnergy){
+                body.push(part.type);
+                currentEnergy += part.energy;
+                carryCount++;
+            }
+            else
+                isPartsAddable = false;
+            if(carryCount >= 16){
+                break;
+            }
+        }
+        return body;
     },
     isMotherRoomEnergyFull : function(){
         var maxEnergy = utilsRoom.getMotherRoom().energyCapacityAvailable;
         var currentEnergy = utilsRoom.getMotherRoom().energyAvailable;
         return currentEnergy >= maxEnergy;
+    },
+    isMotherRoomEnergyEmpty : function(){
+        var currentEnergy = utilsRoom.getMotherRoom().energyAvailable;
+        return currentEnergy <= 0;
     },
     findAndSaveTargets : function(){
         
@@ -120,7 +259,7 @@ var utilsRoom = {
 
             var energyDrops = utilsRoom.findEnergyDropsInRoom(room);// room.find(FIND_DROPPED_ENERGY);
             targets.energyDrops = energyDrops;
-            if(!energyDrops.length){
+            if(!targets.energyDrops.length){
                 targets = utilsRoom.findSourcesInRoom(room,targets);
             }
 
@@ -139,44 +278,14 @@ var utilsRoom = {
             globalRepairTargets.damagedStructures = globalRepairTargets.damagedStructures.concat(repairTargets.damagedStructures);
 
             saves[roomName].targets = targets;
+            saves[roomName].storages = utilsRoom.findStoragesInRoom(room);
         }
         //console.log('allRoles:'+Object.keys(allRoles));
 
         //globalTargets
         var globalTargets = {};
 
-        var transfers = [];
-        var tower = Game.getObjectById('583475f06925cd5373e8c228');
-        if(tower && tower.energy < 1000 && utilsCreep.getCreepsLength()>10){
-            transfers = [tower];
-        }
-        else if(!utilsRoom.isMotherRoomEnergyFull()){
-            transfers = utilsRoom.getMotherRoom().find(FIND_MY_STRUCTURES, {
-                filter: (structure) => {
-                    return  (structure.structureType == STRUCTURE_EXTENSION || structure.structureType == STRUCTURE_SPAWN)
-                            && structure.energy < structure.energyCapacity;
-                }
-            });
-        }
-        else if(tower && tower.energy < 1000){
-            transfers = [tower];
-        }
-        else{
-            transfers = utilsRoom.getMotherRoom().find(FIND_MY_STRUCTURES, {
-                filter: (structure) => {
-                    return  (
-                                (structure.structureType == STRUCTURE_EXTENSION || structure.structureType == STRUCTURE_SPAWN || structure.structureType == STRUCTURE_TOWER)
-                                && structure.energy < structure.energyCapacity
-                            )
-                            ||
-                            (
-                                (structure.structureType == STRUCTURE_CONTAINER || structure.structureType == STRUCTURE_STORAGE) 
-                                && structure.store[RESOURCE_ENERGY] < structure.storeCapacity
-                            );
-                }
-            });
-        }
-        globalTargets.transfers = transfers;
+        globalTargets.transfers = utilsRoom.findTransfer();
 
         globalTargets.sourceFlags = _.filter(Game.flags, (flag) => flag.color == COLOR_YELLOW);
 
@@ -189,53 +298,10 @@ var utilsRoom = {
         /*if(allRoles['upgrader']){
             globalTargets.controller = utilsRoom.getMotherRoom().controller;
         }*/
-
         
         globalTargets.damagedStructures = globalRepairTargets.damagedStructures;
         globalTargets.isRepairUrgent = globalRepairTargets.isRepairUrgent;
         globalTargets.mostUrgentRepair = globalRepairTargets.mostUrgentRepair;
-        //console.log('mostUrgentRepair:'+globalTargets.mostUrgentRepair);
-        //console.log(globalTargets.damagedStructures);
-        //console.log('isRepairUrgent:'+globalTargets.isRepairUrgent);
-        /*if(allRoles['repairer']){
-            var damagedStructures;
-            var isRepairUrgent = true;
-            damagedStructures = _.filter(Game.structures, 
-                (structure) => (structure.structureType == STRUCTURE_RAMPART && structure.hits < 100000)
-                            || (structure.structureType == STRUCTURE_WALL && structure.hits < 100000) 
-                            || structure.hits <= structure.hitsMax - 100 && structure.hits < 10000);
-            utilsRoom.getMotherRoom().find(FIND_STRUCTURES, {
-                filter: (structure) => (structure.structureType == STRUCTURE_RAMPART && structure.hits < 100000)
-                                    || (structure.structureType == STRUCTURE_WALL && structure.hits < 100000) 
-                                    || (structure.hits <= structure.hitsMax - 100 && structure.hits < 10000)
-            });
-            if(!damagedStructures.length){
-                isRepairUrgent = false;
-                damagedStructures = _.filter(Game.structures, 
-                (structure) => structure.hits <= structure.hitsMax - 100);
-                utilsRoom.getMotherRoom().find(FIND_STRUCTURES, {
-                    filter: (structure) => structure.hits <= structure.hitsMax - 100 && structure.hits < 100000
-                });
-            }
-
-            var index = undefined;
-            var min = 90000000;
-
-            for(var i in damagedStructures){
-                var hits = damagedStructures[i].hits;
-                if(hits < min){
-                    index = i;
-                    min = damagedStructures[i].hits;
-                }
-            }
-
-            globalTargets.mostUrgentRepair = damagedStructures[index];
-            //console.log('mostUrgentRepair:'+globalTargets.mostUrgentRepair);
-            //console.log(damagedStructures);
-            //console.log('isRepairUrgent:'+isRepairUrgent);
-            globalTargets.damagedStructures = damagedStructures;
-            globalTargets.isRepairUrgent = isRepairUrgent;
-        }*/
         saves.globalTargets = globalTargets;
     },
     findEnergyDropsInRoom : function(room){
@@ -275,8 +341,8 @@ var utilsRoom = {
                         || (structure.structureType == STRUCTURE_WALL && structure.hits < 100000) 
                         || structure.hits <= structure.hitsMax - 100 && structure.hits < 10000);*/
         room.find(FIND_STRUCTURES, {
-            filter: (structure) => (structure.structureType == STRUCTURE_RAMPART && structure.hits < 100000)
-                                || (structure.structureType == STRUCTURE_WALL && structure.hits < 100000) 
+            filter: (structure) => (structure.structureType == STRUCTURE_RAMPART && structure.hits < 250000)
+                                || (structure.structureType == STRUCTURE_WALL && structure.hits < 250000) 
                                 || (structure.hits <= structure.hitsMax - 100 && structure.hits < 10000)
         });
         if(!damagedStructures.length){
@@ -284,7 +350,7 @@ var utilsRoom = {
             damagedStructures = /*_.filter(Game.structures, 
             (structure) => structure.hits <= structure.hitsMax - 100);*/
             room.find(FIND_STRUCTURES, {
-                filter: (structure) => structure.hits <= structure.hitsMax - 100 && structure.hits < 100000
+                filter: (structure) => structure.hits <= structure.hitsMax - 100 && structure.hits < 1000000
             });
         }
 
@@ -307,6 +373,54 @@ var utilsRoom = {
         repairTargets.isRepairUrgent = isRepairUrgent;
 
         return repairTargets;
+    },
+    findStoragesInRoom : function(room){
+        return room.find(FIND_STRUCTURES, {
+            filter: (structure) => (structure.structureType == STRUCTURE_CONTAINER || structure.structureType == STRUCTURE_STORAGE)
+        });
+    },
+    findTransfer : function(){
+        var transfers = [];
+
+        var isTowersEnergyFull = true;
+        for(var towerIndex in saves.towers){
+            var tower = saves.towers[towerIndex];
+            if(tower && tower.energy < tower.energyCapacity){
+                isTowersEnergyFull = false;
+                break;
+            }
+        }
+        
+        if(!isTowersEnergyFull && utilsCreep.getCreepsLength() >= 10){
+            transfers = saves.towers;
+        }
+        else if(!utilsRoom.isMotherRoomEnergyFull()){
+            transfers = utilsRoom.getMotherRoom().find(FIND_MY_STRUCTURES, {
+                filter: (structure) => {
+                    return  (structure.structureType == STRUCTURE_EXTENSION || structure.structureType == STRUCTURE_SPAWN)
+                            && structure.energy < structure.energyCapacity;
+                }
+            });
+        }
+        else if(!isTowersEnergyFull){
+            transfers = [saves.towers];
+        }
+        else{
+            transfers = utilsRoom.getMotherRoom().find(FIND_MY_STRUCTURES, {
+                filter: (structure) => {
+                    return  (
+                                (structure.structureType == STRUCTURE_EXTENSION || structure.structureType == STRUCTURE_SPAWN || structure.structureType == STRUCTURE_TOWER)
+                                && structure.energy < structure.energyCapacity
+                            )
+                            ||
+                            (
+                                (structure.structureType == STRUCTURE_CONTAINER || structure.structureType == STRUCTURE_STORAGE) 
+                                && structure.store[RESOURCE_ENERGY] < structure.storeCapacity
+                            );
+                }
+            });
+        }
+        return transfers;
     }
 }
 

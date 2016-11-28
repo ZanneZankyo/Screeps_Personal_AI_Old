@@ -3,40 +3,30 @@ var roleUpgrader = require('role.upgrader');
 var roleBuilder = require('role.builder');
 var roleClaimer = require('role.claimer');
 var roleRepairer = require('role.repairer');
+var roleCarrier = require('role.carrier');
+var roleLinkCarrier = require('role.linkCarrier');
+var roleOutsideHarvester = require('role.outsideHarvester');
+var roleOutsideCarrier = require('role.outsideCarrier');
+
 var actionCreep = require('action.creep');
 var utilsRoom = require('utils.room');
 var utilsCreep = require('utils.creep');
+var saves = require('saves');
 
 module.exports.loop = function () {
 
     utilsCreep.clearDeadCreeps();
     
-    var tower = Game.getObjectById('583475f06925cd5373e8c228');
-    if(tower) {
-        
-        var closestHostile = tower.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
-        if(closestHostile) {
-            tower.attack(closestHostile);
+    for(var i in saves.towers){
+        var tower = saves.towers[i];
+        if(tower) {
+            
+            var closestHostile = tower.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
+            if(closestHostile) {
+                tower.attack(closestHostile);
+            }
         }
-        /*else{
-            var damagedStructures = tower.room.find(FIND_STRUCTURES, {
-                filter: (structure) => structure.structureType == STRUCTURE_RAMPART && structure.hits < structure.hitsMax - 800
-            });
-            var index = undefined;
-            var min = 9000000;
-            for(var i in damagedStructures){
-                if(damagedStructures[i].hits < min){
-                    index = i;
-                    min = damagedStructures[i].hits;
-                }
-            }
-            if(damagedStructures[index]) {
-                tower.repair(damagedStructures[index]);
-            }
-        }*/
     }
-
-    utilsRoom.spawnCreep();
     
     utilsRoom.findAndSaveTargets();
 
@@ -52,5 +42,23 @@ module.exports.loop = function () {
             roleClaimer.run(creep);
         else if(creep.memory.role == 'repairer')
             roleRepairer.run(creep);
+        else if(creep.memory.role == 'carrier')
+            roleCarrier.run(creep);
+        else if(creep.memory.role == 'linkCarrier')
+            roleLinkCarrier.run(creep);
+        else if(creep.memory.role == 'outsideHarvester')
+            roleOutsideHarvester.run(creep);
+        else if(creep.memory.role == 'outsideCarrier')
+            roleOutsideCarrier.run(creep);
+    }
+
+    utilsRoom.spawnCreep();
+
+    var linkSender = saves.linkSenders[0];
+    var linkReceiver = saves.linkReceivers[0];
+    if(linkReceiver && linkReceiver.energy < linkReceiver.energyCapacity){
+        if(linkSender){
+            linkSender.transferEnergy(linkReceiver);
+        }
     }
 }

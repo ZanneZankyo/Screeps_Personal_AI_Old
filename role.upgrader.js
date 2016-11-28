@@ -7,11 +7,11 @@ var roleUpgrader = {
         if(creep.memory.upgrading && creep.carry.energy == 0) {
             creep.memory.upgrading = false;
 	    }
-	    if(!creep.memory.upgrading && creep.carry.energy == creep.carryCapacity) {
+	    if(!creep.memory.upgrading && action.isCarryFull(creep)) {
 	        creep.memory.upgrading = true;
 	    }
-	    action.doNeedRenew(creep);
-
+	    if(!creep.memory.renewing)
+            action.doNeedRenew(creep);
         
         if (creep.memory.renewing){
             action.doRenew(creep);
@@ -23,7 +23,7 @@ var roleUpgrader = {
             action.doUpgrade(creep);
         }
         else {
-            action.doHarvest(creep);
+            action.doGetEnergyFromLinkReceiver(creep);
         }
 	}
 };

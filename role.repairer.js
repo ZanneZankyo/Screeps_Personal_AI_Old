@@ -5,12 +5,16 @@ var roleRepairer = {
         if(creep.carry.energy <= 0){
             creep.memory.isRepairing = false;
         }
-        else if (creep.carry.energy >= creep.carryCapacity){
+        else if (action.isCarryFull(creep)){
             creep.memory.isRepairing = true;
         }
-        action.doNeedRenew(creep);
+        if(!creep.memory.renewing)
+            action.doNeedRenew(creep);
 
-        if (creep.memory.renewing){
+        if(action.isCarryingOtherResource(creep)){
+            action.doTransferToStorage(creep);
+        }
+        else if (creep.memory.renewing){
             action.doRenew(creep);
         }
         else if(action.isDanger(creep)){
@@ -18,12 +22,10 @@ var roleRepairer = {
         }
         else if(creep.memory.isRepairing){
             action.doRepair(creep);
-            
         }
         else{
             action.doHarvest(creep);
         }
-            
     }
 }
 

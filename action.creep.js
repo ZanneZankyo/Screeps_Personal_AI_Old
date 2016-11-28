@@ -71,11 +71,131 @@ var actionCreep = {
 
         }
     },
+    doHarvestInRoom(creep,roomName){
+        
+        var droppedEnergy = saves[roomName].targets.energyDrops[0];
+        if(droppedEnergy){
+            creep.memory.action = 'picking up dropped energy: '+droppedEnergy;
+            if(creep.pickup(droppedEnergy) == ERR_NOT_IN_RANGE)
+                creep.moveTo(droppedEnergy);
+            return;
+        }
+        
+        var sources = saves[roomName].targets.sources;
+
+        if(sources.length){ // source in this room have energy
+            
+            if(creep.memory.targetIndex == undefined)
+                creep.memory.targetIndex = 0;
+    
+            if(creep.memory.targetIndex >= sources.length){
+                creep.memory.targetIndex = 0;
+            }
+    
+            creep.memory.action = 'harvesting source: '+sources[creep.memory.targetIndex];
+            if(sources[creep.memory.targetIndex].energy <= 0)
+                creep.memory.targetIndex++;
+            else if(creep.harvest(sources[creep.memory.targetIndex]) == ERR_NOT_IN_RANGE) {
+                if(creep.moveTo(sources[creep.memory.targetIndex]) == ERR_NO_PATH){
+                    creep.memory.targetIndex++;
+                }
+            }
+        }
+    },
+    doGetEnergyFromLinkReceiver : function(creep){
+        var link = saves.linkReceivers[0];
+        if(!link)
+            actionCreep.doHarvest(creep);
+        if(creep.withdraw(link, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+            creep.moveTo(link);    
+        }
+    },
+    doGetEnergyFromStorage : function(creep){
+        var storage = saves.storages[0];
+        if(!storage)
+            actionCreep.doHarvest(creep);
+        creep.memory.action = 'getting energy from '+storage;
+        var result = creep.withdraw(storage, RESOURCE_ENERGY);
+        if(result == ERR_NOT_IN_RANGE) {
+            creep.moveTo(storage);    
+        }
+        return result;
+    },
+    doGetEnergyFromStorageInRoom : function(creep,roomName){
+        var storages = saves[roomName].storages;
+
+        if(creep.memory.targetIndex == undefined)
+                creep.memory.targetIndex = 0;
+    
+        if(creep.memory.targetIndex >= storages.length){
+            creep.memory.targetIndex = 0;
+        }
+
+        var storage = storages[creep.memory.targetIndex];
+        creep.memory.action = 'get resource from: '+storage;
+
+        if(_.sum(storage.store) <= 0)
+            creep.memory.targetIndex++;
+        else {
+            for(var resourceType in creep.carry) {
+                if(creep.withdraw(storage,resourceType) == ERR_NOT_IN_RANGE) {
+                    creep.moveTo(storage);
+                }     
+            }
+        }
+    },
     doUpgrade : function(creep){
         creep.memory.action = 'upgrading: '+utilsRoom.getMotherRoom().controller;
         if(creep.upgradeController(utilsRoom.getMotherRoom().controller) == ERR_NOT_IN_RANGE) {
             creep.moveTo(utilsRoom.getMotherRoom().controller);
         }
+    },
+    doTransferToLinkSender : function(creep){
+        var link = saves.linkSenders[0];
+        if(!link){
+            actionCreep.doTransferToStorage(creep);
+            return;
+        }
+        creep.memory.action = 'transfering resource to: '+link;
+        if(creep.transfer(link,RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+            creep.moveTo(link);
+        }     
+    },
+    doTransferToStorage : function(creep){
+        var storage = saves.storages[0];
+        creep.memory.action = 'transfering resource to: '+storage;
+        for(var resourceType in creep.carry) {
+            if(creep.transfer(storage,resourceType) == ERR_NOT_IN_RANGE) {
+                creep.moveTo(storage);
+                break;
+            }     
+        }
+    },
+    doTransferToStorageInRoom : function(creep,roomName){
+        var storages = saves[roomName].storages;
+
+        if(creep.memory.targetIndex == undefined)
+                creep.memory.targetIndex = 0;
+    
+        if(creep.memory.targetIndex >= storages.length){
+            creep.memory.targetIndex = 0;
+        }
+
+        var storage = storages[creep.memory.targetIndex];
+        creep.memory.action = 'transfering resource to: '+storage;
+
+        if(_.sum(storage.store) >= storage.storeCapacity)
+            creep.memory.targetIndex++;
+        else {
+            for(var resourceType in creep.carry) {
+                if(creep.transfer(storage,resourceType) == ERR_NOT_IN_RANGE) {
+                    creep.moveTo(storage);
+                    break;
+                }     
+            }
+        }
+
+        
     },
     doTransferEnergy : function(creep){
 
@@ -83,6 +203,11 @@ var actionCreep = {
         var roomName = room.name;
         
         var targets = saves.globalTargets.transfers;
+
+        if(actionCreep.isCarryingOtherResource(creep)){
+            actionCreep.doTransferToStorage(creep);
+            return;
+        }
     
         if(!targets.length){
             actionCreep.doUpgrade(creep);
@@ -91,15 +216,24 @@ var actionCreep = {
         
         if(creep.memory.targetIndex == undefined)
             creep.memory.targetIndex = 0;
-        
-        creep.memory.action = 'transfering energy to: '+targets[creep.memory.targetIndex];
-        if(creep.transfer(targets[creep.memory.targetIndex], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-            if(creep.moveTo(targets[creep.memory.targetIndex]) == ERR_NO_PATH){
-                creep.memory.moveSourcesIndex++;
-            }
-        }
+
         if(creep.memory.targetIndex >= targets.length)
             creep.memory.targetIndex = 0;
+
+        var transferTarget = targets[creep.memory.targetIndex];
+        creep.memory.action = 'transfering energy to: '+transferTarget;
+        //console.log(targets.length+' '+creep.memory.targetIndex+' '+transferTarget);
+
+        var transferResult = creep.transfer(transferTarget, RESOURCE_ENERGY);
+        if(transferResult == ERR_NOT_IN_RANGE) {
+            if(creep.moveTo(transferTarget) == ERR_NO_PATH){
+                creep.memory.targetIndex++;
+            }
+        }
+        else if(transferResult == ERR_FULL){
+            creep.memory.targetIndex++;
+        }
+        //console.log(transferResult);
     },
     doBuild : function(creep){
 
@@ -127,13 +261,9 @@ var actionCreep = {
         else{
             if(utilsRoom.isMotherRoomEnergyFull())
                 actionCreep.doUpgrade(creep);
-            else if(utilsCreep.isCreepEnergyFull(creep))
-                actionCreep.doTransferEnergy(creep);
             else
-                actionCreep.doHarvest(creep);
-                
-        }
-            
+                actionCreep.doTransferToStorage(creep);
+        } 
     },
     doRepair : function(creep){
         if(creep.room != utilsRoom.getMotherRoom())
@@ -180,26 +310,35 @@ var actionCreep = {
             else{
                 if(utilsRoom.isMotherRoomEnergyFull())
                     actionCreep.doUpgrade(creep);
-                else if(utilsCreep.isCreepEnergyFull(creep))
-                    actionCreep.doTransferEnergy(creep);
                 else
-                    actionCreep.doHarvest(creep);
+                    actionCreep.doTransferToStorage(creep);
             }
         }
     },
     doNeedRenew : function(creep){
-        if(creep.ticksToLive < 300){
+        if(creep.ticksToLive < 300 && !utilsRoom.isMotherRoomEnergyEmpty()){
             //if(!creep.memory.renewing)
                 //console.log('Creep ['+creep.name+'] needs renewing.');
             creep.memory.renewing = true;
+            if(actionCreep.isCreepOldDesign(creep))
+                creep.memory.recycling = true;
             return true;
         }
         return false;
     },
     doRenew : function(creep){
         var spawn = Game.spawns['Talkroom'];
-        creep.memory.action = 'renewing at: '+spawn;
-        var renewResult = spawn.renewCreep(creep);
+        
+        var renewResult;
+        if(creep.memory.recycling){
+            creep.memory.action = 'recycling at: '+spawn;
+            renewResult = spawn.recycleCreep(creep);
+        }
+        else{
+            creep.memory.action = 'renewing at: '+spawn;
+            renewResult = spawn.renewCreep(creep);
+        }
+
         if(renewResult == ERR_NOT_IN_RANGE)
             creep.moveTo(spawn);
         else if(renewResult == OK && creep.carry.energy > 0 && spawn.energy < spawn.energyCapacity)
@@ -232,6 +371,33 @@ var actionCreep = {
             if(creep.attack(closestHostile)==ERR_NOT_IN_RANGE)
                 creep.moveTo(closestHostile);
         }
+    },
+    isCarryFull : function(creep){
+        return _.sum(creep.carry) >= creep.carryCapacity;
+    },
+    isCarryingOtherResource : function(creep){
+        return _.sum(creep.carry) > creep.carry.energy;
+    },
+    isCreepOldDesign : function(creep){
+
+        if(creep.memory.role = 'linkCarrier')
+            return false;
+
+        var costs = utilsCreep.getCostList();
+        var totalCost = 0;
+
+        for(var i in creep.body){
+            var type = creep.body[i].type;
+
+            if(!costs[type])
+                return false;
+            totalCost += costs[type];
+
+        }
+        console.log(totalCost + ' : ' + (utilsRoom.getMotherRoom().energyCapacityAvailable - 100));
+        if(totalCost < utilsRoom.getMotherRoom().energyCapacityAvailable - 100)
+            return true;
+        return false;
     }
 }
 

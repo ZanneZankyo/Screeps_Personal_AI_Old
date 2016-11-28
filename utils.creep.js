@@ -21,6 +21,13 @@ var utilsCreep = {
     },
     isCreepEnergyFull : function(creep){
         return creep.carry.energy >= creep.carryCapacity;
+    },
+    getCostList : function(){
+        var costs = {};
+        costs['work'] = 100;
+        costs['carry'] = 50;
+        costs['move'] = 50;
+        return costs;
     }
 }
 
