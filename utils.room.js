@@ -21,6 +21,9 @@ var utilsRoom = {
             if(roleName == 'outsideHarvester'){
                 utilsCreep.assignHarvestRoom(newCreep);
             }
+            if(roleName == 'outsideCarrier'){
+                utilsCreep.assignCarryRoom(newCreep);
+            }
         }
     },
     getNextSpawnCreepRole : function (){
@@ -36,13 +39,53 @@ var utilsRoom = {
         var carriers = _.filter(Game.creeps, (creep) => creep.memory.role == 'carrier');
         var carrierWeight = 6;
         var outsideHarvesters = _.filter(Game.creeps, (creep) => creep.memory.role == 'outsideHarvester');
+        var outsideCarriers = _.filter(Game.creeps, (creep) => creep.memory.role == 'outsideCarrier');
+        var linkCarriers = _.filter(Game.creeps, (creep) => creep.memory.role == 'linkCarrier');
 
         var totalWeight = harvesterWeight + upgraderWeight + repairerWeight + builderWeight + carrierWeight;
 
         var numOfCreeps = utilsCreep.getCreepsLength();
 
-        if(harvesters.length >= 2 && outsideHarvesters.length < Object.keys(saves.globalTargets.sourceFlags).length){
+        if(harvesters.length < 2){
+            return 'harvester';
+        }
+        if(carriers.length < 1){
+            return 'carrier';
+        }
+        if(saves.linkSenders[0] && linkCarriers.length < 1){
+            return 'linkCarrier';
+        }
+        if(upgraders.length < 2){
+            return 'upgrader';
+        }
+        if(repairers.length < 1){
+            return 'repairer';
+        }
+        if(builders.length < 1){
+            return 'builder';
+        }
+        if(outsideHarvesters.length < Object.keys(saves.globalTargets.sourceFlags).length && outsideHarvesters.length <= outsideCarriers.length){
             return 'outsideHarvester';
+        }
+        if(outsideCarriers.length < outsideHarvesters.length){
+            return 'outsideCarrier';
+        }
+        if(repairers.length < 2){
+            return 'repairer';
+        }
+        if(builders.length < 2){
+            return 'builder';
+        }
+        return undefined;
+        
+        /*if(harvesters.length >= 2 && outsideHarvesters.length < Object.keys(saves.globalTargets.sourceFlags).length && outsideHarvesters.length <= outsideCarriers.length){
+            return 'outsideHarvester';
+        }
+        if(harvesters.length >= 2 && outsideCarriers.length < outsideHarvesters.length){
+            return 'outsideCarrier';
+        }
+        if(harvesters.length >= 2 && saves.linkSenders[0] && linkCarriers.length < 1){
+            return 'linkCarrier';
         }
 
         if(harvesters.length < parseInt(numOfCreeps * harvesterWeight / totalWeight))
@@ -55,52 +98,22 @@ var utilsRoom = {
             return 'builder';
         else if(carriers.length < parseInt(numOfCreeps * carrierWeight / totalWeight))
             return 'carrier';
-        else if(numOfCreeps < 20)
-            return 'harvester';
-        
-        //var claimers = _.filter(Game.creeps, (creep) => creep.memory.role == 'claimer');
-
-        
-        /*if(harvesters.length < 2)
-            return 'harvester';
-        if(upgraders.length < 1)
-            return 'upgrader';
-        if(repairers.length < 2)
-            return 'repairer';
-        if(repairers.length < 1)
-            return 'repairer';
-        //if(claimers.length < 1 && utilsRoom.getMotherRoom().energyAvailable > 650)
-        //    return 'claimer';
-        
-        if(builders.length + upgraders.length + harvesters.length >= 30)
-            return undefined;
-        
-        var creepsOfRoles = [
-            {name:'harvester',length:harvesters.length},
-            {name:'builder',length:builders.length},
-            {name:'upgrader',length:upgraders.length},
-            {name:'repairer',length:repairers.length}
-        ];
-        var minIndex = 0;
-        var min = creepsOfRoles[0].length;
-        for(var index in creepsOfRoles){
-            var creepsOfRole = creepsOfRoles[index];
-            if(creepsOfRole.length < min){
-                min = creepsOfRole.length;
-                minIndex = index;
-            }
-        }
-        return creepsOfRoles[minIndex].name;*/
+        else if(numOfCreeps < 15)
+            return 'harvester';*/
     },
     getBodyPart : function(currentEnergy,roleName){
         if(roleName == 'claimer')
             return utilsRoom.getClaimerBodyPart();
-        if(roleName == 'carrier')
+        if(roleName == 'carrier' || roleName == 'outsideCarrier')
             return utilsRoom.getCarrierBodyPart(currentEnergy);
         if(roleName == 'upgrader')
             return utilsRoom.getUpgraderBodyPart(currentEnergy);
         if(roleName == 'harvester')
             return utilsRoom.getHarvesterBodyPart(currentEnergy);
+        if(roleName == 'outsideHarvester')
+            return utilsRoom.getOutsideHarvesterBodyPart(currentEnergy);
+        if(roleName == 'linkCarrier')
+            return utilsRoom.getLinkCarrierBodyPart(currentEnergy);
         return utilsRoom.getWorkerBodyPart(currentEnergy);
     },
     getWorkerBodyPart : function(totalEnergy){
@@ -147,34 +160,44 @@ var utilsRoom = {
         var isPartsAddable = true;
         var currentEnergy = 200;
         var body = [CARRY,MOVE,MOVE,MOVE];
+        var workCount = 0;
         while(isPartsAddable){
             if(parts.energy <= totalEnergy - currentEnergy){
                 body.push(parts.type);
+                workCount++;
                 currentEnergy += parts.energy;
             }
             else
                 isPartsAddable = false;
+            if(workCount >= 10)
+                break;
         }
-
         return body;
     },
     getClaimerBodyPart : function(){
         return [CLAIM,MOVE];
     },
     getOutsideHarvesterBodyPart : function(totalEnergy){
-        var parts = {energy:100,type:WORK};
-        var isPartsAddable = true;
-        var currentEnergy = 200;
-        var body = [CARRY,MOVE,MOVE,MOVE];
-        while(isPartsAddable){
-            if(parts.energy <= totalEnergy - currentEnergy){
-                body.push(parts.type);
-                currentEnergy += parts.energy;
+        var parts = [{energy:100,type:WORK},{energy:50,type:MOVE}];
+        var isPartsAddable = [true,true];
+        var currentEnergy = 50;
+        var body = [CARRY];
+        var workCount = 0;
+        while(isPartsAddable[0]||isPartsAddable[1]){
+            if(index >= parts.length)
+                index = 0;
+            if(isPartsAddable[index] && parts[index].energy <= totalEnergy - currentEnergy){
+                body.push(parts[index].type);
+                currentEnergy += parts[index].energy;
+                if(parts[index].type == WORK)
+                    workCount++;
             }
             else
-                isPartsAddable = false;
+                isPartsAddable[index] = false;
+            if(workCount >= 10)
+                break;
+            index++;
         }
-
         return body;
     },
     getCarrierBodyPart : function(totalEnergy){
@@ -215,9 +238,8 @@ var utilsRoom = {
             }
             else
                 isPartsAddable = false;
-            if(carryCount >= 16){
+            if(carryCount >= 16)
                 break;
-            }
         }
         return body;
     },
@@ -229,6 +251,10 @@ var utilsRoom = {
     isMotherRoomEnergyEmpty : function(){
         var currentEnergy = utilsRoom.getMotherRoom().energyAvailable;
         return currentEnergy <= 0;
+    },
+    isMotherRoomEnergyLow : function(){
+        var currentEnergy = utilsRoom.getMotherRoom().energyAvailable;
+        return currentEnergy <= 200;
     },
     findAndSaveTargets : function(){
         
@@ -257,13 +283,11 @@ var utilsRoom = {
             var room = rooms[roomName];
             var targets = {};
 
-            var energyDrops = utilsRoom.findEnergyDropsInRoom(room);// room.find(FIND_DROPPED_ENERGY);
-            targets.energyDrops = energyDrops;
-            if(!targets.energyDrops.length){
-                targets = utilsRoom.findSourcesInRoom(room,targets);
-            }
+            targets.energyDrops = utilsRoom.findEnergyDropsInRoom(room);
+            targets = utilsRoom.findSourcesInRoom(room,targets);
 
             var repairTargets = utilsRoom.findRepairInRoom(room);
+            targets.containers = _.filter(repairTargets,(target) => target.structureType == STRUCTURE_CONTAINER);
             if(repairTargets.mostUrgentRepair){
                 if(globalRepairTargets.mostUrgentRepair){
                     if(repairTargets.mostUrgentRepair.hits < globalRepairTargets.mostUrgentRepair.hits)
@@ -279,6 +303,8 @@ var utilsRoom = {
 
             saves[roomName].targets = targets;
             saves[roomName].storages = utilsRoom.findStoragesInRoom(room);
+
+            //console.log('saves'+room+'.sources '+saves[roomName].targets.sources);
         }
         //console.log('allRoles:'+Object.keys(allRoles));
 
@@ -318,17 +344,9 @@ var utilsRoom = {
                 break;
             }
         }
+        //console.log('findSourcesInRoom '+room+':'+sources);
         targets.sourcesHaveEnergy = sourcesHaveEnergy;
         targets.sources = sources;
-        if(!sourcesHaveEnergy || !sources.length){
-            var storages = utilsRoom.getMotherRoom().find(FIND_MY_STRUCTURES, {
-                filter: (structure) => {
-                    return  (structure.structureType == STRUCTURE_CONTAINER || structure.structureType == STRUCTURE_STORAGE) 
-                                && structure.store[RESOURCE_ENERGY] > 0;
-                }
-            });
-            targets.storages = storages;
-        }
         return targets;
     },
     findRepairInRoom : function(room){
@@ -342,7 +360,8 @@ var utilsRoom = {
                         || structure.hits <= structure.hitsMax - 100 && structure.hits < 10000);*/
         room.find(FIND_STRUCTURES, {
             filter: (structure) => (structure.structureType == STRUCTURE_RAMPART && structure.hits < 250000)
-                                || (structure.structureType == STRUCTURE_WALL && structure.hits < 250000) 
+                                || (structure.structureType == STRUCTURE_WALL && structure.hits < 250000)
+                                || (structure.structureType == STRUCTURE_CONTAINER && structure.hits < 250000) 
                                 || (structure.hits <= structure.hitsMax - 100 && structure.hits < 10000)
         });
         if(!damagedStructures.length){
@@ -397,10 +416,18 @@ var utilsRoom = {
         else if(!utilsRoom.isMotherRoomEnergyFull()){
             transfers = utilsRoom.getMotherRoom().find(FIND_MY_STRUCTURES, {
                 filter: (structure) => {
-                    return  (structure.structureType == STRUCTURE_EXTENSION || structure.structureType == STRUCTURE_SPAWN)
+                    return  (structure.structureType == STRUCTURE_EXTENSION)
                             && structure.energy < structure.energyCapacity;
                 }
             });
+            if(!transfers.length){
+                transfers = utilsRoom.getMotherRoom().find(FIND_MY_STRUCTURES, {
+                    filter: (structure) => {
+                        return  (structure.structureType == STRUCTURE_SPAWN)
+                                && structure.energy < structure.energyCapacity;
+                    }
+                });
+            }
         }
         else if(!isTowersEnergyFull){
             transfers = [saves.towers];

@@ -72,17 +72,9 @@ var actionCreep = {
         }
     },
     doHarvestInRoom(creep,roomName){
-        
-        var droppedEnergy = saves[roomName].targets.energyDrops[0];
-        if(droppedEnergy){
-            creep.memory.action = 'picking up dropped energy: '+droppedEnergy;
-            if(creep.pickup(droppedEnergy) == ERR_NOT_IN_RANGE)
-                creep.moveTo(droppedEnergy);
-            return;
-        }
-        
-        var sources = saves[roomName].targets.sources;
 
+        var sources = saves[roomName].targets.sources;
+        //console.log(roomName+' sources: '+sources);
         if(sources.length){ // source in this room have energy
             
             if(creep.memory.targetIndex == undefined)
@@ -111,6 +103,9 @@ var actionCreep = {
         }
     },
     doGetEnergyFromStorage : function(creep){
+
+        actionCreep.doPickDropResourceInRoom(creep,creep.room.name);
+
         var storage = saves.storages[0];
         if(!storage)
             actionCreep.doHarvest(creep);
@@ -122,6 +117,9 @@ var actionCreep = {
         return result;
     },
     doGetEnergyFromStorageInRoom : function(creep,roomName){
+
+        actionCreep.doPickDropResourceInRoom(creep,roomName);
+
         var storages = saves[roomName].storages;
 
         if(creep.memory.targetIndex == undefined)
@@ -130,10 +128,11 @@ var actionCreep = {
         if(creep.memory.targetIndex >= storages.length){
             creep.memory.targetIndex = 0;
         }
-
         var storage = storages[creep.memory.targetIndex];
         creep.memory.action = 'get resource from: '+storage;
 
+        if(!storage)
+            return;
         if(_.sum(storage.store) <= 0)
             creep.memory.targetIndex++;
         else {
@@ -143,6 +142,16 @@ var actionCreep = {
                 }     
             }
         }
+    },
+    doPickDropResourceInRoom : function(creep,roomName){
+        var droppedEnergy = saves[roomName].targets.energyDrops[0];
+        if(droppedEnergy){
+            creep.memory.action = 'picking up dropped energy: '+droppedEnergy;
+            if(creep.pickup(droppedEnergy) == ERR_NOT_IN_RANGE)
+                creep.moveTo(droppedEnergy);
+            return true;
+        }
+        return false;
     },
     doUpgrade : function(creep){
         creep.memory.action = 'upgrading: '+utilsRoom.getMotherRoom().controller;
@@ -156,8 +165,15 @@ var actionCreep = {
             actionCreep.doTransferToStorage(creep);
             return;
         }
+        if(link.energy >= link.energyCapacity){
+
+            actionCreep.doTransferEnergy(creep);
+            return;
+        }
         creep.memory.action = 'transfering resource to: '+link;
-        if(creep.transfer(link,RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+        //console.log('transfering resource to: '+link);
+        var result = creep.transfer(link,RESOURCE_ENERGY);
+        if(result == ERR_NOT_IN_RANGE) {
             creep.moveTo(link);
         }     
     },
@@ -173,6 +189,10 @@ var actionCreep = {
     },
     doTransferToStorageInRoom : function(creep,roomName){
         var storages = saves[roomName].storages;
+        if(!storages.length){
+            actionCreep.doTransferToStorage(creep);
+            return;
+        }
 
         if(creep.memory.targetIndex == undefined)
                 creep.memory.targetIndex = 0;
@@ -315,15 +335,27 @@ var actionCreep = {
             }
         }
     },
+    doRepairContainerInRoom : function(creep,roomName){
+        var container = saves[roomName].targets.containers[0];
+        if(creep.repair(container) == ERR_NOT_IN_RANGE) {
+            creep.moveTo(container);
+        }
+    },
     doNeedRenew : function(creep){
-        if(creep.ticksToLive < 300 && !utilsRoom.isMotherRoomEnergyEmpty()){
+
+        var defaultRenewTicks = 300;
+        if(creep.memory.role == 'outsideHarvester')
+            defaultRenewTicks = 600;
+
+        if(creep.ticksToLive < defaultRenewTicks && !utilsRoom.isMotherRoomEnergyLow()){
             //if(!creep.memory.renewing)
                 //console.log('Creep ['+creep.name+'] needs renewing.');
             creep.memory.renewing = true;
-            if(actionCreep.isCreepOldDesign(creep))
-                creep.memory.recycling = true;
+            //if(actionCreep.isCreepOldDesign(creep))
+            //    creep.memory.recycling = true;
             return true;
         }
+        creep.memory.renewing = false;
         return false;
     },
     doRenew : function(creep){
@@ -350,9 +382,12 @@ var actionCreep = {
         return renewResult;
     },
     isDanger : function(creep){
-        if(creep.room.find(FIND_HOSTILE_CREEPS).length > 0){
+        var hostiles = creep.room.find(FIND_HOSTILE_CREEPS);
+        if(hostiles.length > 0){
             console.log('['+creep.name+'] found hostiles! at room: ['+creep.room.name+']');
-            return true;
+            console.log('hostile live:'+hostiles[0].ticksToLive);
+            try{return hostiles[0].ticksToLive;}
+            catch(e){return true;}
         }
         return false;
     },
@@ -380,7 +415,7 @@ var actionCreep = {
     },
     isCreepOldDesign : function(creep){
 
-        if(creep.memory.role = 'linkCarrier')
+        if(creep.memory.role == 'linkCarrier')
             return false;
 
         var costs = utilsCreep.getCostList();
@@ -394,7 +429,7 @@ var actionCreep = {
             totalCost += costs[type];
 
         }
-        console.log(totalCost + ' : ' + (utilsRoom.getMotherRoom().energyCapacityAvailable - 100));
+        //console.log(totalCost + ' : ' + (utilsRoom.getMotherRoom().energyCapacityAvailable - 100));
         if(totalCost < utilsRoom.getMotherRoom().energyCapacityAvailable - 100)
             return true;
         return false;

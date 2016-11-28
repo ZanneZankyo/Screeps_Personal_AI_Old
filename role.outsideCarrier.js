@@ -1,7 +1,16 @@
 var action = require('action.creep');
+var saves = require('saves');
+var utilsCreep = require('utils.creep');
 
 var roleOutsideCarrier = {
 	run : function(creep){
+
+		var waitUntilSafe = 0;
+
+		if(!creep.memory.flagName || !Game.flags[creep.memory.flagName])
+			utilsCreep.assignCarryRoom(creep);
+		saves.outsideCarriers[creep.memory.flagName] = creep.name;
+
 		if(creep.memory.carrying && creep.carry.energy <= 0)
             creep.memory.carrying = false;
         if(!creep.memory.carrying && action.isCarryFull(creep))
@@ -11,11 +20,16 @@ var roleOutsideCarrier = {
 
         if (creep.memory.renewing){
             action.doRenew(creep);
+            return;
         }
-        else if(action.isDanger(creep)){
+        waitUntilSafe = action.isDanger(creep);
+        waitUntilSafe--;
+        if(waitUntilSafe > 0){
             action.doAvoid(creep);
+            return;
         }
-        else if(creep.memory.carrying){
+
+        if(creep.memory.carrying){
         	action.doTransferToStorage(creep);
         }
         else if(creep.room != Game.flags[creep.memory.flagName].room){
@@ -23,7 +37,8 @@ var roleOutsideCarrier = {
         	creep.moveTo(Game.flags[creep.memory.flagName]);
         }
         else {
-            action.doGetEnergyFromStorageInRoom(creep,creep.room.name);
+        	action.doGetEnergyFromStorageInRoom(creep,creep.room.name);
+            
         }
 	}
 }

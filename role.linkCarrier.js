@@ -11,16 +11,23 @@ var saves = require('saves');
 var roleLinkCarrier = {
     run : function(creep){
 
-        if(!creep.memory.renewing)
+        if(!creep.memory.renewing){
+        	//console.log('roleLinkCarrier.doNeedRenew');
 	    	action.doNeedRenew(creep);
+        }
 
+	    //console.log('roleLinkCarrier.renewing:'+creep.memory.renewing);
         if (creep.memory.renewing){
             action.doRenew(creep);
         }
         else if(action.isCarryFull(creep)){
-            action.doTransferToLinkSender(creep);
+        	action.doTransferToLinkSender(creep);
         }
         else {
+        	if(saves.storages[0].store[RESOURCE_ENERGY] < 800){
+        		creep.memory.action='storage energy too low';
+        		return;
+        	}
             action.doGetEnergyFromStorage(creep);
         }
     }

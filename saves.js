@@ -13,7 +13,8 @@ var saves = {
 	linkSenders : [Game.getObjectById('583b747f8a6863104b90cc94')],
 	linkReceivers : [Game.getObjectById('583b80c54de580c118117567')],
 	storages : [Game.getObjectById('58357ad908bd538d44185b8d')],
-	outsideHarvesters : [],
+	outsideHarvesters : {},
+	outsideCarriers : {},
 };
 
 module.exports = saves;

@@ -15,6 +15,9 @@ var saves = require('saves');
 
 module.exports.loop = function () {
 
+    //console.log(Object.keys(saves.outsideHarvesters) + '/' + Object.keys(saves.outsideCarriers) );
+
+
     utilsCreep.clearDeadCreeps();
     
     for(var i in saves.towers){
@@ -52,13 +55,16 @@ module.exports.loop = function () {
             roleOutsideCarrier.run(creep);
     }
 
+    utilsCreep.clearAssignments();
     utilsRoom.spawnCreep();
+    //console.log(saves.outsideCarriers['E1S41.source']);
 
     var linkSender = saves.linkSenders[0];
     var linkReceiver = saves.linkReceivers[0];
     if(linkReceiver && linkReceiver.energy < linkReceiver.energyCapacity){
         if(linkSender){
-            linkSender.transferEnergy(linkReceiver);
+            var result = linkSender.transferEnergy(linkReceiver);
+            //console.log('linkSender.transferEnergy(linkReceiver):'+result);
         }
     }
 }
